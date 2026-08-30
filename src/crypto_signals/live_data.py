@@ -113,12 +113,14 @@ class LiveMarketData:
         timeframe = timeframe.upper()
         if timeframe not in {"M5", "M15", "H1", "H4", "D1"}:
             raise ValueError("timeframe must be M5, M15, H1, H4, or D1")
+        required_bars = {"M5": 289, "M15": 97, "H1": 25, "H4": 7, "D1": 2}[timeframe]
+        limit = max(limit, required_bars)
         for source in SOURCES:
             cached = self._read_cache(source, symbol, timeframe)
             if cached is not None:
                 try:
                     closes, volumes = self._series(source.name, cached)
-                    if len(closes) >= 5:
+                    if len(closes) >= required_bars:
                         return self._snapshot(symbol, timeframe, closes, volumes, source.name, cached=True)
                 except (TypeError, KeyError, IndexError, ValueError):
                     pass  # corrupt cache is treated like a source failure
@@ -127,8 +129,8 @@ class LiveMarketData:
             try:
                 payload, headers = self._request(source, symbol, timeframe, limit)
                 closes, volumes = self._series(source.name, payload)
-                if len(closes) < 5:
-                    raise ValueError("source returned too few candles")
+                if len(closes) < required_bars:
+                    raise ValueError(f"source returned too few candles: {len(closes)} < {required_bars}")
                 if "x-mbx-used-weight-1m" in headers:
                     health.remaining = max(0, 1200 - int(headers["x-mbx-used-weight-1m"]))
                     health.limit = 1200
