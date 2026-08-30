@@ -105,6 +105,39 @@ Token bot Telegram wajib disimpan melalui environment variable atau secret manag
 7. Menjalankan unit test, backtest, paper trading, dan simulasi kegagalan sumber data.
 8. Menyempurnakan bobot agent berdasarkan hasil evaluasi yang dapat diaudit.
 
+## Cara menjalankan
+
+Persyaratan: **Python 3.11 atau lebih baru**.
+
+```bash
+# 1. Buat dan aktifkan virtual environment
+python3 -m venv .venv
+source .venv/bin/activate       # Linux/macOS
+# Windows PowerShell: .venv\\Scripts\\Activate.ps1
+
+# 2. Instal project dalam mode editable
+python -m pip install --upgrade pip
+python -m pip install -e .
+
+# 3. Jalankan demo signal (belum mengambil data internet)
+crypto-signals
+```
+
+Alternatif tanpa instalasi editable:
+
+```bash
+PYTHONPATH=src python -m crypto_signals.cli
+```
+
+Perintah demo menggunakan snapshot BTCUSDT tiruan untuk membuktikan pipeline Spot dan Leverage berjalan. Ini **bukan data market live** dan bukan signal trading nyata. Saat ini belum ada konektor exchange atau pengiriman Telegram live.
+
+Untuk menjalankan test setelah dependency tersedia:
+
+```bash
+python -m pip install -e '.[test]'
+python -m pytest -q
+```
+
 ## Discovery kandidat eksternal
 
 Sistem tidak menjalankan kode dari seluruh internet secara otomatis. Kandidat eksternal dicatat dalam katalog metadata, dikelompokkan berdasarkan fungsi, lalu dipilih melalui audit lisensi, keamanan, pemeliharaan, dan kecocokan signal-only. Katalog awal dan keputusan seleksi tersedia di [`docs/agent-catalog.md`](docs/agent-catalog.md). Modul `discovery.py` menyediakan grouping dan ranking kandidat, sedangkan `agent_groups.py` memisahkan mandat Spot dan Leverage.

@@ -1,8 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "multi-agent-crypto-signals"
 version = "0.1.0"
 description = "Signal-only multi-agent crypto market research system"
 requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest>=8"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
 
 [project.scripts]
 crypto-signals = "crypto_signals.cli:main"
