@@ -366,6 +366,25 @@ Fitur scheduler:
 
 Untuk menghentikan proses foreground, tekan `Ctrl+C`. Pada server, gunakan service supervisor seperti systemd atau Docker dan kirim `SIGTERM` saat deployment agar shutdown berjalan bersih.
 
+## Menjalankan dengan Docker
+
+Docker Compose tersedia untuk deployment signal-only:
+
+```bash
+cp .env.example .env
+# isi TELEGRAM_BOT_TOKEN dan TELEGRAM_CHAT_ID
+sudo docker compose up -d --build
+sudo docker compose logs -f crypto-signals
+```
+
+State SQLite disimpan di volume Docker dan tetap ada ketika container dibuat ulang. Hentikan dengan `sudo docker compose down`.
+
+## Model AI tambahan (opsional)
+
+Project memiliki registry model provider-agnostic di `src/crypto_signals/model_registry.py`. Baseline lokal selalu aktif. Endpoint model lokal/kompatibel OpenAI hanya menjadi penasihat riset jika dikonfigurasi melalui environment variable; model tidak boleh melewati Critical Manager dan tidak memiliki akses order.
+
+Tidak ada cara aman atau realistis untuk “mengambil semua LLM di internet”. Model remote dapat berubah, membutuhkan lisensi/credential, memiliki rate limit, atau tidak aman. Karena itu project tetap dapat berjalan tanpa LLM berbayar dan tidak mengunduh atau mengeksekusi model remote secara otomatis.
+
 ## Status
 
-Fondasi project sudah dimulai ulang dari nol. Engine agent, team branches, candidate discovery, source rotation, live public data adapter, scheduler 24/7, self-review terbatas, reward/penalty, dan formatter Telegram sudah tersedia. Konektor pengiriman Telegram, agent deep-research, registry universe publik, dan rekapan harian sudah tersedia. Deployment supervisor tetap perlu dikonfigurasi di server pengguna.
+Project sudah memiliki engine signal-only, team branches, candidate discovery, source rotation, live public data adapter, universe refresh, scheduler 24/7, self-review terbatas, critical manager, persistent state, reward/penalty, Telegram delivery, daily recap, dan Docker deployment. Sebelum production eksternal, pengguna tetap harus mengisi credential Telegram, menjalankan paper signal, dan memverifikasi jaringan/provider dari server deployment.

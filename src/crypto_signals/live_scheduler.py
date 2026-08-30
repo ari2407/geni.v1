@@ -27,8 +27,9 @@ def main() -> None:
         emitter = telegram_emitter().send if args.telegram else print
     except ValueError as exc:
         parser.error(str(exc))
-    summary = DailySummaryAgent(emitter) if args.telegram else None
-    scheduler = SignalScheduler(config=SchedulerConfig(args.interval, args.cooldown, args.retries), emitter=emitter, summary=summary, state=PersistentState(args.state))
+    state = PersistentState(args.state)
+    summary = DailySummaryAgent(emitter, state=state) if args.telegram else None
+    scheduler = SignalScheduler(config=SchedulerConfig(args.interval, args.cooldown, args.retries), emitter=emitter, summary=summary, state=state)
     if args.all_public:
         if args.max_symbols < 1 or args.max_symbols > 1000:
             parser.error("--max-symbols must be between 1 and 1000")

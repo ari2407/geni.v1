@@ -1,0 +1,14 @@
+services:
+  crypto-signals:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    command: ["--telegram", "--all-public", "--max-symbols", "100", "--timeframe", "H1", "--interval", "3600", "--cooldown", "1800", "--retries", "3"]
+    volumes:
+      - signal-state:/app/data/runtime
+    stop_grace_period: 30s
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  signal-state:
