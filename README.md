@@ -148,6 +148,179 @@ python -m pip install -e '.[test]'
 python -m pytest -q
 ```
 
+## Panduan pemula: mengirim signal ke Telegram
+
+### 1. Siapkan komputer/server
+
+Gunakan Linux VPS atau komputer yang dapat menyala terus. Python yang dibutuhkan adalah versi 3.11 atau lebih baru.
+
+Periksa versi Python:
+
+```bash
+python3 --version
+```
+
+Clone repository dan masuk ke foldernya:
+
+```bash
+git clone https://github.com/ari2407/geni.v1.git
+cd geni.v1
+```
+
+Jika Anda memakai branch pengembangan saat ini:
+
+```bash
+git checkout arena/01a05138-geni-v1
+```
+
+### 2. Buat virtual environment
+
+Virtual environment memisahkan dependency project dari Python sistem:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e .
+```
+
+### 3. Buat bot Telegram
+
+1. Buka Telegram dan cari akun **@BotFather**.
+2. Kirim `/newbot`.
+3. Ikuti instruksi dan simpan token bot secara rahasia.
+4. Kirim pesan apa pun ke bot yang baru dibuat.
+5. Untuk memperoleh chat ID, buka:
+   `https://api.telegram.org/botTOKEN_ANDA/getUpdates`
+6. Cari nilai `message.chat.id` pada respons JSON.
+7. Untuk grup, tambahkan bot ke grup dan kirim pesan di grup tersebut terlebih dahulu.
+8. Untuk channel, tambahkan bot sebagai administrator dengan izin yang diperlukan.
+
+Jangan memasukkan token ke source code, README, commit, atau chat publik.
+
+### 4. Isi environment variable
+
+Salin contoh konfigurasi:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env`:
+
+```dotenv
+TELEGRAM_BOT_TOKEN=123456789:token_dari_botfather
+TELEGRAM_CHAT_ID=123456789
+```
+
+Muat variable ke terminal Linux:
+
+```bash
+set -a
+source .env
+set +a
+```
+
+File `.env` sudah masuk `.gitignore` dan tidak boleh di-commit.
+
+### 5. Tes tanpa Telegram terlebih dahulu
+
+Jalankan satu cycle dan hanya cetak output ke terminal:
+
+```bash
+crypto-signals-scheduler --once
+```
+
+Jika semua endpoint exchange tidak dapat diakses, program akan berhenti aman tanpa mengarang signal.
+
+### 6. Tes kirim Telegram satu kali
+
+Setelah environment variable benar:
+
+```bash
+crypto-signals-scheduler --telegram --once
+```
+
+Jika berhasil, pesan signal akan muncul di chat Telegram. Program hanya mengirim teks signal; tidak ada API key trading, private key, atau endpoint order.
+
+### 7. Jalankan 24/7
+
+```bash
+crypto-signals-scheduler \\
+  --telegram \\
+  --symbol BTC/USDT \\
+  --timeframe H1 \\
+  --interval 300 \\
+  --cooldown 1800 \\
+  --retries 3
+```
+
+Arti parameter:
+
+- `--telegram`: aktifkan pengiriman Telegram. Tanpa flag ini output hanya ke terminal.
+- `--symbol`: pair yang dianalisis, contoh `BTC/USDT`.
+- `--timeframe`: pilih `M5`, `M15`, `H1`, `H4`, atau `D1`.
+- `--interval 300`: jalankan cycle setiap 5 menit.
+- `--cooldown 1800`: cegah signal identik selama 30 menit.
+- `--retries 3`: ulangi pengambilan data jika terjadi error.
+
+Untuk menghentikan dengan aman tekan `Ctrl+C`. Di server, kirim `SIGTERM`; scheduler akan menyelesaikan handler shutdown dan berhenti tanpa menjalankan order.
+
+### 8. Menjalankan sebagai service Linux
+
+Buat file `/etc/systemd/system/crypto-signals.service`:
+
+```ini
+[Unit]
+Description=Crypto Signal Telegram Scheduler
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=USER_LINUX_ANDA
+WorkingDirectory=/path/ke/geni.v1
+EnvironmentFile=/path/ke/geni.v1/.env
+ExecStart=/path/ke/geni.v1/.venv/bin/crypto-signals-scheduler --telegram --symbol BTC/USDT --timeframe H1 --interval 300 --cooldown 1800 --retries 3
+Restart=on-failure
+RestartSec=30
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Ganti `USER_LINUX_ANDA` dan path project, lalu:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now crypto-signals
+sudo systemctl status crypto-signals
+journalctl -u crypto-signals -f
+```
+
+Untuk menghentikan:
+
+```bash
+sudo systemctl stop crypto-signals
+```
+
+### 9. Troubleshooting umum
+
+- **`TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are required`**: `.env` belum dimuat atau nama variable salah.
+- **Telegram tidak menerima pesan**: pastikan sudah mengirim pesan ke bot, chat ID benar, dan bot sudah menjadi anggota grup/channel.
+- **`all public market-data sources failed`**: server tidak bisa mengakses endpoint publik, DNS bermasalah, exchange sedang membatasi request, atau pair tidak tersedia. Tidak ada signal yang dibuat dalam kondisi ini.
+- **Tidak ada signal**: ini dapat terjadi karena filter validasi, confidence, liquidity, volatility, atau cooldown. Tidak berarti program mati.
+- **Signal berulang**: periksa apakah pair, timeframe, arah, dan nilai `--cooldown` sesuai. Deduplikasi hanya berlaku selama proses berjalan; state cooldown belum persisten setelah restart.
+
+### 10. Pengujian developer
+
+```bash
+python -m pip install -e '.[test]'
+python -m pytest -q
+```
+
 ## Discovery kandidat eksternal
 
 Sistem tidak menjalankan kode dari seluruh internet secara otomatis. Kandidat eksternal dicatat dalam katalog metadata, dikelompokkan berdasarkan fungsi, lalu dipilih melalui audit lisensi, keamanan, pemeliharaan, dan kecocokan signal-only. Katalog awal dan keputusan seleksi tersedia di [`docs/agent-catalog.md`](docs/agent-catalog.md). Modul `discovery.py` menyediakan grouping dan ranking kandidat, sedangkan `agent_groups.py` memisahkan mandat Spot dan Leverage.

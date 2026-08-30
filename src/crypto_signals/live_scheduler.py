@@ -12,9 +12,14 @@ def main() -> None:
     parser.add_argument("--cooldown", type=int, default=1800, help="seconds before identical signal may repeat")
     parser.add_argument("--retries", type=int, default=3)
     parser.add_argument("--once", action="store_true", help="run one cycle and exit")
+    parser.add_argument("--telegram", action="store_true", help="send approved signals to Telegram")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    scheduler = SignalScheduler(config=SchedulerConfig(args.interval, args.cooldown, args.retries))
+    try:
+        emitter = telegram_emitter().send if args.telegram else print
+    except ValueError as exc:
+        parser.error(str(exc))
+    scheduler = SignalScheduler(config=SchedulerConfig(args.interval, args.cooldown, args.retries), emitter=emitter)
     if args.once:
         scheduler.run_cycle(args.symbol, args.timeframe)
         return
