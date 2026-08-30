@@ -105,6 +105,10 @@ Token bot Telegram wajib disimpan melalui environment variable atau secret manag
 7. Menjalankan unit test, backtest, paper trading, dan simulasi kegagalan sumber data.
 8. Menyempurnakan bobot agent berdasarkan hasil evaluasi yang dapat diaudit.
 
+## Discovery kandidat eksternal
+
+Sistem tidak menjalankan kode dari seluruh internet secara otomatis. Kandidat eksternal dicatat dalam katalog metadata, dikelompokkan berdasarkan fungsi, lalu dipilih melalui audit lisensi, keamanan, pemeliharaan, dan kecocokan signal-only. Katalog awal dan keputusan seleksi tersedia di [`docs/agent-catalog.md`](docs/agent-catalog.md). Modul `discovery.py` menyediakan grouping dan ranking kandidat, sedangkan `agent_groups.py` memisahkan mandat Spot dan Leverage.
+
 ## Status
 
-Repository ini sengaja dimulai ulang dari nol. Implementasi akan ditambahkan bertahap setelah fondasi arsitektur dan aturan evaluasi disepakati.
+Fondasi project sudah dimulai ulang dari nol. Engine agent, team branches, candidate discovery, source rotation, self-review terbatas, reward/penalty, dan formatter Telegram sudah tersedia. Konektor internet/exchange/Telegram nyata akan ditambahkan setelah audit dan konfigurasi sumber disetujui.
