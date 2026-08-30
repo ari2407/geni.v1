@@ -387,6 +387,10 @@ sudo docker compose logs -f crypto-signals
 
 State SQLite disimpan di volume Docker dan tetap ada ketika container dibuat ulang. Hentikan dengan `sudo docker compose down`.
 
+## Model kuantitatif ringan: Kelly dan Monte Carlo
+
+`quant_models.py` menyediakan Kelly Criterion dan simulasi Monte Carlo tanpa NumPy atau dependency berat. Keduanya adalah diagnostic bagi Critical Manager untuk membantu menilai payoff dan risiko hipotetis signal, bukan ukuran modal nyata, bukan jaminan profit, dan bukan eksekusi. Input invalid membuat signal ditolak secara fail-closed.
+
 ## Mode laptop kentang dan model internet-only
 
 Default project memakai profile `lite`, tanpa model lokal besar, tanpa GPU, tanpa PyTorch, dan tanpa dependency ML berat. Profile ini cocok untuk laptop RAM kecil:
