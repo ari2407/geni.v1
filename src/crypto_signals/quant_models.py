@@ -53,6 +53,69 @@ class MonteCarloModel:
         outcomes.sort()
         return MonteCarloResult(self.trials, self.steps, ruined / self.trials, outcomes[max(0, int(self.trials * .05) - 1)], outcomes[self.trials // 2])
 
+
+@dataclass(frozen=True)
+class BayesianWinRateResult:
+    posterior_mean: float
+    lower_bound: float
+    upper_bound: float
+    samples: int
+
+class BayesianWinRate:
+    """Conjugate Beta update; transparent adaptive win-rate estimate."""
+    def __init__(self, prior_wins: float = 1.0, prior_losses: float = 1.0):
+        if prior_wins <= 0 or prior_losses <= 0: raise ValueError("Beta priors must be positive")
+        self.prior_wins, self.prior_losses = prior_wins, prior_losses
+
+    def update(self, wins: int, losses: int) -> BayesianWinRateResult:
+        if wins < 0 or losses < 0: raise ValueError("wins/losses cannot be negative")
+        a, b = self.prior_wins + wins, self.prior_losses + losses
+        mean = a / (a + b)
+        variance = a * b / ((a + b) ** 2 * (a + b + 1))
+        margin = 1.96 * variance ** .5
+        return BayesianWinRateResult(mean, max(0.0, mean - margin), min(1.0, mean + margin), wins + losses)
+
+class EWMAVolatility:
+    """Exponentially weighted volatility estimate; no heavy numerical package."""
+    def __init__(self, decay: float = .94):
+        if not 0 < decay < 1: raise ValueError("decay must be between 0 and 1")
+        self.decay = decay
+
+    def estimate(self, returns: list[float]) -> float:
+        if not returns: raise ValueError("returns cannot be empty")
+        variance = returns[0] ** 2
+        for value in returns[1:]:
+            variance = self.decay * variance + (1 - self.decay) * value ** 2
+        return variance ** .5
+
+class HistoricalVaR:
+    """Historical lower-tail quantile of returns, expressed as a loss fraction."""
+    def __init__(self, confidence: float = .95):
+        if not 0 < confidence < 1: raise ValueError("confidence must be between 0 and 1")
+        self.confidence = confidence
+
+    def loss(self, returns: list[float]) -> float:
+        if len(returns) < 20: raise ValueError("at least 20 returns are required")
+        ordered = sorted(returns)
+        index = max(0, min(len(ordered) - 1, int((1 - self.confidence) * len(ordered))))
+        return max(0.0, -ordered[index])
+
+class BootstrapInterval:
+    """Seeded bootstrap interval for the mean return; diagnostic only."""
+    def __init__(self, resamples: int = 500, seed: int = 11):
+        if resamples < 100: raise ValueError("resamples must be >=100")
+        self.resamples, self.seed = resamples, seed
+
+    def mean_interval(self, returns: list[float]) -> tuple[float, float]:
+        if not returns: raise ValueError("returns cannot be empty")
+        rng, means = random.Random(self.seed), []
+        for _ in range(self.resamples):
+            sample = [returns[rng.randrange(len(returns))] for _ in returns]
+            means.append(sum(sample) / len(sample))
+        means.sort()
+        return means[int(.025 * self.resamples)], means[int(.975 * self.resamples)]
+
+
 @dataclass(frozen=True)
 class QuantRiskResult:
     kelly: KellyResult

@@ -389,7 +389,16 @@ State SQLite disimpan di volume Docker dan tetap ada ketika container dibuat ula
 
 ## Model kuantitatif ringan: Kelly dan Monte Carlo
 
-`quant_models.py` menyediakan Kelly Criterion dan simulasi Monte Carlo tanpa NumPy atau dependency berat. Keduanya adalah diagnostic bagi Critical Manager untuk membantu menilai payoff dan risiko hipotetis signal, bukan ukuran modal nyata, bukan jaminan profit, dan bukan eksekusi. Input invalid membuat signal ditolak secara fail-closed.
+`quant_models.py` menyediakan beberapa diagnostic tanpa NumPy atau dependency berat:
+
+- Kelly Criterion;
+- Monte Carlo stress simulation;
+- Bayesian Beta win-rate update;
+- EWMA volatility;
+- historical VaR;
+- bootstrap confidence interval.
+
+Model-model ini saling membantu melalui hasil terstruktur, tetapi tidak saling memanggil secara rekursif dan tidak boleh menjadi eksekutor. Critical Manager menggunakan diagnostic secara fail-closed; input invalid atau model crash menolak signal. Semua hasil hanya membantu menilai payoff/ketidakpastian signal, bukan ukuran modal nyata, bukan jaminan profit, dan bukan eksekusi.
 
 ## Mode laptop kentang dan model internet-only
 
