@@ -3,6 +3,7 @@ import logging
 
 from .scheduler import SchedulerConfig, SignalScheduler, install_shutdown_handlers
 from .summary import DailySummaryAgent
+from .state import PersistentState
 from .telegram import telegram_emitter
 from .universe import PublicUniverse
 
@@ -19,6 +20,7 @@ def main() -> None:
     parser.add_argument("--retries", type=int, default=3)
     parser.add_argument("--once", action="store_true", help="run one cycle and exit")
     parser.add_argument("--telegram", action="store_true", help="send approved signals and daily recap to Telegram")
+    parser.add_argument("--state", default="data/runtime/state.db", help="SQLite state path for restart-safe cooldowns")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     try:
@@ -26,7 +28,7 @@ def main() -> None:
     except ValueError as exc:
         parser.error(str(exc))
     summary = DailySummaryAgent(emitter) if args.telegram else None
-    scheduler = SignalScheduler(config=SchedulerConfig(args.interval, args.cooldown, args.retries), emitter=emitter, summary=summary)
+    scheduler = SignalScheduler(config=SchedulerConfig(args.interval, args.cooldown, args.retries), emitter=emitter, summary=summary, state=PersistentState(args.state))
     if args.all_public:
         if args.max_symbols < 1 or args.max_symbols > 1000:
             parser.error("--max-symbols must be between 1 and 1000")

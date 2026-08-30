@@ -17,6 +17,8 @@ from .models import Signal, Team
 from .orchestrator import SignalOrchestrator
 from .telegram import format_signal
 from .summary import DailySummaryAgent
+from .manager import CriticalManager
+from .state import PersistentState
 
 log = logging.getLogger(__name__)
 
@@ -44,6 +46,8 @@ class SignalScheduler:
     clock: Callable[[], float] = time.monotonic
     sleep: Callable[[float], None] = time.sleep
     summary: DailySummaryAgent | None = None
+    state: PersistentState | None = None
+    manager: CriticalManager = field(default_factory=CriticalManager)
     _sent_at: dict[tuple, float] = field(default_factory=dict, init=False)
 
     def stop_event(self) -> threading.Event:
@@ -68,6 +72,9 @@ class SignalScheduler:
         return (signal.symbol, signal.team.value, signal.direction, signal.timeframe)
 
     def _allowed(self, signal: Signal, now: float) -> bool:
+        key = repr(self._key(signal))
+        if self.state and not self.state.allowed(key, now, self.config.cooldown_seconds):
+            return False
         previous = self._sent_at.get(self._key(signal))
         return previous is None or now - previous >= self.config.cooldown_seconds
 
@@ -75,6 +82,8 @@ class SignalScheduler:
         if self.config.cooldown_seconds == 0:
             return
         self._sent_at[self._key(signal)] = now
+        if self.state:
+            self.state.remember(repr(self._key(signal)), now)
         self._sent_at = {k: t for k, t in self._sent_at.items() if now - t < self.config.cooldown_seconds}
 
     def run_cycle(self, symbol: str = "BTC/USDT", timeframe: str = "H1") -> list[Signal]:
@@ -84,6 +93,10 @@ class SignalScheduler:
         for team in Team:
             candidate = self.engine.analyze(market, team)
             if candidate is None or not self._allowed(candidate, now):
+                continue
+            approved, reason = self.manager.approve(candidate)
+            if not approved:
+                log.info("manager rejected %s %s: %s", candidate.symbol, candidate.team.value, reason)
                 continue
             review = self.engine.self_review(candidate)
             if review["status"] != "reviewed" or review["action"] != "signal_only":
