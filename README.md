@@ -387,6 +387,14 @@ sudo docker compose logs -f crypto-signals
 
 State SQLite disimpan di volume Docker dan tetap ada ketika container dibuat ulang. Hentikan dengan `sudo docker compose down`.
 
+## Ekosistem agent, model, dan batas device
+
+Agent data memakai kode deterministik, agent quant memakai model matematis, agent research dapat memakai LLM remote, manager memakai aturan kritis, dan Telegram notifier hanya mengirim pesan. Agent/model dapat mengusulkan upgrade, berdiskusi melalui channel terpisah, dan berpindah pangkat/tim, tetapi upgrade harus melalui proposal, test, approval supervisor, canary, dan rollback. Ini mencegah self-modification merusak signal provider.
+
+Model juga dapat menjadi anggota ekosistem: setiap model punya role, score, versi, champion/challenger, dan histori. Kelly, Monte Carlo, Bayesian, EWMA, VaR, dan Bootstrap dapat diberi wrapper model-agent; outputnya tetap advisory sampai Critical Manager menyetujuinya.
+
+`resource_guard.py` memantau CPU load, memory, dan disk. Jika device mendekati batas, sistem menghentikan upgrade, crawling, diskusi, dan model remote baru; signal pipeline tetap berjalan dengan baseline ringan. Ini menjaga laptop kentang tetap hidup.
+
 ## Model kuantitatif ringan: Kelly dan Monte Carlo
 
 `quant_models.py` menyediakan beberapa diagnostic tanpa NumPy atau dependency berat:
