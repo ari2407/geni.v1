@@ -189,6 +189,14 @@ git checkout arena/01a05138-geni-v1
 
 ### 2. Buat virtual environment
 
+Untuk cara paling ringan, project juga menyediakan launcher tanpa instalasi package:
+
+```bash
+python3 run_scheduler.py --help
+```
+
+Launcher ini hanya memakai standard library dan folder `src`. Instalasi editable di bawah tetap disarankan untuk mendapatkan perintah `crypto-signals-scheduler`.
+
 Virtual environment memisahkan dependency project dari Python sistem:
 
 ```bash

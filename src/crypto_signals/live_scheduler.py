@@ -1,5 +1,6 @@
 import argparse
 import logging
+import os
 
 from .scheduler import SchedulerConfig, SignalScheduler, install_shutdown_handlers
 from .summary import DailySummaryAgent
@@ -10,7 +11,22 @@ from .profiles import get_profile
 from .remote_adviser import RemoteAdviser
 
 
+def load_dotenv(path: str = ".env") -> None:
+    """Load simple KEY=VALUE lines without an extra dependency or override."""
+    try:
+        with open(path, encoding="utf-8") as handle:
+            for line in handle:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                os.environ.setdefault(key.strip(), value.strip().strip('\\"\\\''))
+    except FileNotFoundError:
+        pass
+
+
 def main() -> None:
+    load_dotenv()
     parser = argparse.ArgumentParser(description="Run the signal-only crypto scheduler")
     parser.add_argument("--symbol", default="BTC/USDT", help="single pair; ignored with --all-public")
     parser.add_argument("--symbols", help="comma-separated pairs")
