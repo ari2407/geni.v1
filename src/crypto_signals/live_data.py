@@ -6,6 +6,7 @@ exists in this module. Network and JSON handling are deliberately dependency-fre
 from __future__ import annotations
 
 import json
+import math
 import os
 import re
 import tempfile
@@ -97,13 +98,19 @@ class LiveMarketData:
     def _series(source: str, payload: object) -> tuple[list[float], list[float]]:
         if source == "binance":
             rows = payload
-            return [float(row[4]) for row in rows], [float(row[5]) for row in rows]
-        if source == "kraken":
+            closes, volumes = [float(row[4]) for row in rows], [float(row[5]) for row in rows]
+        elif source == "kraken":
             result = payload.get("result", {})
             rows = next((value for key, value in result.items() if key != "last"), [])
-            return [float(row[4]) for row in rows], [float(row[6]) for row in rows]
-        rows = payload
-        return [float(row[4]) for row in rows], [float(row[5]) for row in rows]
+            closes, volumes = [float(row[4]) for row in rows], [float(row[6]) for row in rows]
+        else:
+            rows = payload
+            closes, volumes = [float(row[4]) for row in rows], [float(row[5]) for row in rows]
+        if any(not math.isfinite(value) or value <= 0 for value in closes):
+            raise ValueError("source returned invalid close values")
+        if any(not math.isfinite(value) or value < 0 for value in volumes):
+            raise ValueError("source returned invalid volume values")
+        return closes, volumes
 
     def fetch_snapshot(self, symbol: str = "BTC/USDT", timeframe: str = "H1", limit: int = 50) -> MarketSnapshot:
         if not isinstance(symbol, str) or not re.fullmatch(r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+", symbol):
