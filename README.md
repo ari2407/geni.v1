@@ -152,6 +152,33 @@ python -m pytest -q
 
 Sistem tidak menjalankan kode dari seluruh internet secara otomatis. Kandidat eksternal dicatat dalam katalog metadata, dikelompokkan berdasarkan fungsi, lalu dipilih melalui audit lisensi, keamanan, pemeliharaan, dan kecocokan signal-only. Katalog awal dan keputusan seleksi tersedia di [`docs/agent-catalog.md`](docs/agent-catalog.md). Modul `discovery.py` menyediakan grouping dan ranking kandidat, sedangkan `agent_groups.py` memisahkan mandat Spot dan Leverage.
 
+## Scheduler 24/7
+
+Scheduler signal-only tersedia melalui:
+
+```bash
+crypto-signals-scheduler
+```
+
+Konfigurasi contoh:
+
+```bash
+crypto-signals-scheduler --symbol BTC/USDT --timeframe H1 --interval 300 --cooldown 1800 --retries 3
+```
+
+Fitur scheduler:
+
+- polling berkala dengan interval yang dapat diatur;
+- retry data dengan exponential backoff;
+- cooldown dan deduplikasi berdasarkan aset, tim, arah, dan timeframe;
+- memory deduplikasi dibatasi agar tidak tumbuh tanpa batas;
+- error satu cycle dicatat lalu scheduler tetap hidup;
+- `SIGINT` dan `SIGTERM` menghentikan loop secara aman;
+- `--once` menjalankan satu cycle untuk pengujian;
+- tidak memiliki jalur order execution.
+
+Untuk menghentikan proses foreground, tekan `Ctrl+C`. Pada server, gunakan service supervisor seperti systemd atau Docker dan kirim `SIGTERM` saat deployment agar shutdown berjalan bersih.
+
 ## Status
 
-Fondasi project sudah dimulai ulang dari nol. Engine agent, team branches, candidate discovery, source rotation, self-review terbatas, reward/penalty, dan formatter Telegram sudah tersedia. Konektor internet/exchange/Telegram nyata akan ditambahkan setelah audit dan konfigurasi sumber disetujui.
+Fondasi project sudah dimulai ulang dari nol. Engine agent, team branches, candidate discovery, source rotation, live public data adapter, scheduler 24/7, self-review terbatas, reward/penalty, dan formatter Telegram sudah tersedia. Konektor pengiriman Telegram nyata serta deployment supervisor akan ditambahkan setelah audit dan konfigurasi disetujui.
