@@ -6,6 +6,9 @@ exists in this module. Network and JSON handling are deliberately dependency-fre
 from __future__ import annotations
 
 import json
+import os
+import re
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,9 +29,9 @@ class PublicSource:
 
 
 SOURCES = (
-    PublicSource("binance", "https://api.binance.com", lambda s: s.replace("/", ""), "/api/v3/klines"),
-    PublicSource("kraken", "https://api.kraken.com", lambda s: s.replace("USDT", "/USDT").replace("BTC/", "XBT/"), "/0/public/OHLC"),
-    PublicSource("coinbase", "https://api.exchange.coinbase.com", lambda s: s.replace("USDT", "-USDT").replace("/", "-"), "/products/{symbol}/candles"),
+    PublicSource("binance", "https://api.binance.com", lambda s: s.replace("/", "").upper(), "/api/v3/klines"),
+    PublicSource("kraken", "https://api.kraken.com", lambda s: ("XBT" if s.split("/")[0].upper() == "BTC" else s.split("/")[0].upper()) + "/" + s.split("/")[1].upper(), "/0/public/OHLC"),
+    PublicSource("coinbase", "https://api.exchange.coinbase.com", lambda s: s.replace("/", "-").upper(), "/products/{symbol}/candles"),
 )
 
 
@@ -47,7 +50,7 @@ class LiveMarketData:
         self.pool = SourcePool(self.health, reserve=reserve)
 
     def _cache_path(self, source: PublicSource, symbol: str, timeframe: str) -> Path:
-        safe = symbol.replace("/", "_")
+        safe = re.sub(r"[^A-Za-z0-9_.-]", "_", symbol)
         return self.cache_dir / f"{source.name}_{safe}_{timeframe}.json"
 
     def _read_cache(self, source: PublicSource, symbol: str, timeframe: str) -> dict | None:
@@ -63,7 +66,17 @@ class LiveMarketData:
     def _write_cache(self, source: PublicSource, symbol: str, timeframe: str, data: object) -> None:
         path = self._cache_path(source, symbol, timeframe)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps({"saved_at": time.time(), "data": data}))
+        payload = json.dumps({"saved_at": time.time(), "data": data})
+        fd, temporary = tempfile.mkstemp(prefix=".cache-", dir=path.parent, text=True)
+        try:
+            with os.fdopen(fd, "w") as handle:
+                handle.write(payload)
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary, path)
+        finally:
+            if os.path.exists(temporary):
+                os.unlink(temporary)
 
     def _request(self, source: PublicSource, symbol: str, timeframe: str, limit: int) -> tuple[object, dict[str, str]]:
         interval = {"M5": "5m", "M15": "15m", "H1": "1h", "H4": "4h", "D1": "1d"}[timeframe.upper()]
@@ -81,34 +94,46 @@ class LiveMarketData:
         return self.fetcher(url)
 
     @staticmethod
-    def _closes(source: str, payload: object) -> list[float]:
+    def _series(source: str, payload: object) -> tuple[list[float], list[float]]:
         if source == "binance":
-            return [float(row[4]) for row in payload]
+            rows = payload
+            return [float(row[4]) for row in rows], [float(row[5]) for row in rows]
         if source == "kraken":
             result = payload.get("result", {})
             rows = next((value for key, value in result.items() if key != "last"), [])
-            return [float(row[4]) for row in rows]
-        return [float(row[4]) for row in payload]
+            return [float(row[4]) for row in rows], [float(row[6]) for row in rows]
+        rows = payload
+        return [float(row[4]) for row in rows], [float(row[5]) for row in rows]
 
     def fetch_snapshot(self, symbol: str = "BTC/USDT", timeframe: str = "H1", limit: int = 50) -> MarketSnapshot:
+        if not isinstance(symbol, str) or not re.fullmatch(r"[A-Za-z0-9._-]+/[A-Za-z0-9._-]+", symbol):
+            raise ValueError("symbol must look like BASE/QUOTE")
+        if not isinstance(limit, int) or not 5 <= limit <= 1000:
+            raise ValueError("limit must be between 5 and 1000")
         timeframe = timeframe.upper()
         if timeframe not in {"M5", "M15", "H1", "H4", "D1"}:
             raise ValueError("timeframe must be M5, M15, H1, H4, or D1")
         for source in SOURCES:
             cached = self._read_cache(source, symbol, timeframe)
             if cached is not None:
-                closes = self._closes(source.name, cached)
-                return self._snapshot(symbol, timeframe, closes, source.name, cached=True)
+                try:
+                    closes, volumes = self._series(source.name, cached)
+                    if len(closes) >= 5:
+                        return self._snapshot(symbol, timeframe, closes, volumes, source.name, cached=True)
+                except (TypeError, KeyError, IndexError, ValueError):
+                    pass  # corrupt cache is treated like a source failure
         while (health := self.pool.next()) is not None:
             source = next(item for item in SOURCES if item.name == health.name)
             try:
                 payload, headers = self._request(source, symbol, timeframe, limit)
-                closes = self._closes(source.name, payload)
+                closes, volumes = self._series(source.name, payload)
                 if len(closes) < 5:
                     raise ValueError("source returned too few candles")
                 if "x-mbx-used-weight-1m" in headers:
                     health.remaining = max(0, 1200 - int(headers["x-mbx-used-weight-1m"]))
                     health.limit = 1200
+                    if health.remaining <= self.pool.reserve:
+                        self.pool.mark_rate_limited(health, 60.0)
                 else:
                     remaining = headers.get("x-ratelimit-remaining") or headers.get("ratelimit-remaining")
                     limit = headers.get("x-ratelimit-limit") or headers.get("ratelimit-limit")
@@ -116,14 +141,16 @@ class LiveMarketData:
                         health.remaining = int(remaining)
                     if limit is not None:
                         health.limit = int(limit)
+                    if health.remaining is not None and health.remaining <= self.pool.reserve:
+                        self.pool.mark_rate_limited(health, 60.0)
                 self._write_cache(source, symbol, timeframe, payload)
-                return self._snapshot(symbol, timeframe, closes, source.name, cached=False)
+                return self._snapshot(symbol, timeframe, closes, volumes, source.name, cached=False)
             except Exception as exc:  # fallback must keep the pipeline alive
                 self.pool.mark_failure(health, str(exc))
         raise RuntimeError("all public market-data sources failed or are rate-limited")
 
     @staticmethod
-    def _snapshot(symbol: str, timeframe: str, closes: list[float], source: str, cached: bool) -> MarketSnapshot:
+    def _snapshot(symbol: str, timeframe: str, closes: list[float], volumes: list[float], source: str, cached: bool) -> MarketSnapshot:
         latest = closes[-1]
         previous = closes[-2]
         lookback = closes[max(0, len(closes) - 20)]
@@ -131,4 +158,9 @@ class LiveMarketData:
         momentum = max(-1.0, min(1.0, (latest / previous - 1) * 40)) if previous else 0
         returns = [(closes[i] / closes[i - 1] - 1) for i in range(1, len(closes)) if closes[i - 1]]
         volatility = min(1.0, (sum(x * x for x in returns) / max(1, len(returns))) ** .5 * 20)
-        return MarketSnapshot(symbol, timeframe, latest, (latest / closes[0] - 1) * 100, 1.0, trend, momentum, volatility, .8, 0 if not cached else 30, (source,))
+        bars_24h = {"M5": 288, "M15": 96, "H1": 24, "H4": 6, "D1": 1}[timeframe]
+        anchor = closes[max(0, len(closes) - 1 - bars_24h)]
+        recent_volume = sum(volumes[-5:]) / max(1, len(volumes[-5:]))
+        prior_volume = sum(volumes[:-5]) / max(1, len(volumes[:-5]))
+        volume_ratio = recent_volume / prior_volume if prior_volume else 1.0
+        return MarketSnapshot(symbol, timeframe, latest, (latest / anchor - 1) * 100 if anchor else 0, volume_ratio, trend, momentum, volatility, .8, 0 if not cached else 30, (source,))

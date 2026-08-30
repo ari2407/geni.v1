@@ -66,14 +66,14 @@ class SignalScheduler:
         return (signal.symbol, signal.team.value, signal.direction, signal.timeframe)
 
     def _allowed(self, signal: Signal, now: float) -> bool:
-        key = self._key(signal)
-        previous = self._sent_at.get(key)
-        if previous is not None and now - previous < self.config.cooldown_seconds:
-            return False
-        self._sent_at[key] = now
-        # Keep memory bounded while preserving active cooldown entries.
+        previous = self._sent_at.get(self._key(signal))
+        return previous is None or now - previous >= self.config.cooldown_seconds
+
+    def _remember(self, signal: Signal, now: float) -> None:
+        if self.config.cooldown_seconds == 0:
+            return
+        self._sent_at[self._key(signal)] = now
         self._sent_at = {k: t for k, t in self._sent_at.items() if now - t < self.config.cooldown_seconds}
-        return True
 
     def run_cycle(self, symbol: str = "BTC/USDT", timeframe: str = "H1") -> list[Signal]:
         market = self._fetch_with_retry(symbol, timeframe)
@@ -87,6 +87,7 @@ class SignalScheduler:
             if review["status"] != "reviewed" or review["action"] != "signal_only":
                 continue
             self.emitter(format_signal(candidate))
+            self._remember(candidate, now)  # only deduplicate after successful delivery
             emitted.append(candidate)
         return emitted
 
