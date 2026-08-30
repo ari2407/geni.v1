@@ -137,7 +137,21 @@ crypto-signals-live
 PYTHONPATH=src python -m crypto_signals.run_live
 ```
 
-Adapter live mencoba Binance, lalu Kraken, lalu Coinbase. Data disimpan sementara di `data/runtime/cache/` agar request berulang memakai cache dan tidak membebani sumber. Tidak diperlukan API key. Perintah ini hanya mengambil candle publik, membuat signal, lalu mencetak pesan; belum mengirim Telegram dan tidak memiliki fungsi order. Jika jaringan atau semua sumber sedang tidak tersedia, program berhenti dengan aman tanpa membuat signal.
+Adapter live mencoba Binance, lalu Kraken, lalu Coinbase. Data disimpan sementara di `data/runtime/cache/` agar request berulang memakai cache dan tidak membebani sumber. Tidak diperlukan API key. Untuk menganalisis banyak aset yang lolos filter universe publik:
+
+```bash
+crypto-signals-scheduler --all-public --max-symbols 100 --timeframe H1 --once
+```
+
+Atau tentukan daftar sendiri:
+
+```bash
+crypto-signals-scheduler --symbols BTC/USDT,ETH/USDT,SOL/USDT --timeframe H1 --once
+```
+
+`--all-public` menggabungkan daftar pair aktif dari registry provider publik dan meneruskannya satu per satu ke filter kandidat. Angka `--max-symbols` adalah pengaman agar rate limit tidak dihabiskan dalam satu cycle. Registry ini extensible; “semua internet” tidak bisa dijamin karena tidak ada API universal dan setiap sumber memiliki lisensi, format, dan rate limit berbeda.
+
+Perintah ini hanya mengambil candle publik, membuat signal, lalu mencetak pesan; belum mengirim Telegram dan tidak memiliki fungsi order. Jika jaringan atau semua sumber sedang tidak tersedia, program berhenti dengan aman tanpa membuat signal.
 
 Perintah demo menggunakan snapshot BTCUSDT tiruan untuk membuktikan pipeline Spot dan Leverage berjalan. Ini **bukan data market live** dan bukan signal trading nyata. Saat ini belum ada konektor exchange atau pengiriman Telegram live.
 
@@ -354,4 +368,4 @@ Untuk menghentikan proses foreground, tekan `Ctrl+C`. Pada server, gunakan servi
 
 ## Status
 
-Fondasi project sudah dimulai ulang dari nol. Engine agent, team branches, candidate discovery, source rotation, live public data adapter, scheduler 24/7, self-review terbatas, reward/penalty, dan formatter Telegram sudah tersedia. Konektor pengiriman Telegram nyata serta deployment supervisor akan ditambahkan setelah audit dan konfigurasi disetujui.
+Fondasi project sudah dimulai ulang dari nol. Engine agent, team branches, candidate discovery, source rotation, live public data adapter, scheduler 24/7, self-review terbatas, reward/penalty, dan formatter Telegram sudah tersedia. Konektor pengiriman Telegram, agent deep-research, registry universe publik, dan rekapan harian sudah tersedia. Deployment supervisor tetap perlu dikonfigurasi di server pengguna.

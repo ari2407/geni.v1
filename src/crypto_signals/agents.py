@@ -57,11 +57,11 @@ class RiskManager(Agent):
 
 
 class NewsAndResearchAgent(Agent):
-    name = "news_research"
+    name = "deep_researcher"
 
     def review(self, m, team):
         # Connector-ready placeholder: no invented web data is allowed.
-        return AgentOpinion(self.name, 0.0, .25, "Belum ada berita eksternal yang diberikan; tidak mengarang sentimen.", {"source_count": len(m.sources)})
+        return AgentOpinion(self.name, 0.0, .25, "Belum ada bukti eksternal yang diberikan; tidak mengarang berita atau sentimen.", {"source_count": len(m.sources), "permission": "read_public_only"})
 
 
 class SignalValidator(Agent):

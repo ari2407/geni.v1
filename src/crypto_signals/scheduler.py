@@ -16,6 +16,7 @@ from .live_data import LiveMarketData
 from .models import Signal, Team
 from .orchestrator import SignalOrchestrator
 from .telegram import format_signal
+from .summary import DailySummaryAgent
 
 log = logging.getLogger(__name__)
 
@@ -42,6 +43,7 @@ class SignalScheduler:
     emitter: Callable[[str], None] = print
     clock: Callable[[], float] = time.monotonic
     sleep: Callable[[float], None] = time.sleep
+    summary: DailySummaryAgent | None = None
     _sent_at: dict[tuple, float] = field(default_factory=dict, init=False)
 
     def stop_event(self) -> threading.Event:
@@ -88,17 +90,30 @@ class SignalScheduler:
                 continue
             self.emitter(format_signal(candidate))
             self._remember(candidate, now)  # only deduplicate after successful delivery
+            if self.summary:
+                self.summary.record(candidate.team.value, candidate.direction)
             emitted.append(candidate)
+        if self.summary:
+            self.summary.maybe_send()
         return emitted
 
-    def run_forever(self, symbol: str = "BTC/USDT", timeframe: str = "H1", stop: threading.Event | None = None) -> None:
+    def run_symbols(self, symbols: list[str], timeframe: str = "H1") -> list[Signal]:
+        emitted: list[Signal] = []
+        for symbol in symbols:
+            try:
+                emitted.extend(self.run_cycle(symbol, timeframe))
+            except Exception:
+                log.exception("symbol cycle failed: %s", symbol)
+        return emitted
+
+    def run_forever(self, symbol: str | list[str] = "BTC/USDT", timeframe: str = "H1", stop: threading.Event | None = None) -> None:
         """Run until stop is set; Ctrl-C/TERM are handled by the CLI."""
         stop = stop or self.stop_event()
         log.info("scheduler started: %s %s every %ss", symbol, timeframe, self.config.interval_seconds)
         while not stop.is_set():
             started = self.clock()
             try:
-                self.run_cycle(symbol, timeframe)
+                self.run_symbols(symbol, timeframe) if isinstance(symbol, list) else self.run_cycle(symbol, timeframe)
             except Exception:
                 log.exception("cycle failed; scheduler remains alive")
             elapsed = max(0.0, self.clock() - started)
