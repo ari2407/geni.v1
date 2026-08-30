@@ -172,4 +172,6 @@ class LiveMarketData:
         recent_volume = sum(volumes[-5:]) / max(1, len(volumes[-5:]))
         prior_volume = sum(volumes[:-5]) / max(1, len(volumes[:-5]))
         volume_ratio = recent_volume / prior_volume if prior_volume else 1.0
-        return MarketSnapshot(symbol, timeframe, latest, (latest / anchor - 1) * 100 if anchor else 0, volume_ratio, trend, momentum, volatility, .8, 0 if not cached else 30, (source,))
+        # This is a conservative volume-liquidity proxy, not an order-book claim.
+        liquidity = min(1.0, max(0.05, 0.35 + min(volume_ratio, 2.0) * 0.25))
+        return MarketSnapshot(symbol, timeframe, latest, (latest / anchor - 1) * 100 if anchor else 0, volume_ratio, trend, momentum, volatility, liquidity, 0 if not cached else 30, (source,))
