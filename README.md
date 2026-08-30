@@ -129,6 +129,16 @@ Alternatif tanpa instalasi editable:
 PYTHONPATH=src python -m crypto_signals.cli
 ```
 
+Untuk satu siklus data publik live dari exchange:
+
+```bash
+crypto-signals-live
+# atau tanpa instalasi:
+PYTHONPATH=src python -m crypto_signals.run_live
+```
+
+Adapter live mencoba Binance, lalu Kraken, lalu Coinbase. Data disimpan sementara di `data/runtime/cache/` agar request berulang memakai cache dan tidak membebani sumber. Tidak diperlukan API key. Perintah ini hanya mengambil candle publik, membuat signal, lalu mencetak pesan; belum mengirim Telegram dan tidak memiliki fungsi order. Jika jaringan atau semua sumber sedang tidak tersedia, program berhenti dengan aman tanpa membuat signal.
+
 Perintah demo menggunakan snapshot BTCUSDT tiruan untuk membuktikan pipeline Spot dan Leverage berjalan. Ini **bukan data market live** dan bukan signal trading nyata. Saat ini belum ada konektor exchange atau pengiriman Telegram live.
 
 Untuk menjalankan test setelah dependency tersedia:
