@@ -379,9 +379,31 @@ sudo docker compose logs -f crypto-signals
 
 State SQLite disimpan di volume Docker dan tetap ada ketika container dibuat ulang. Hentikan dengan `sudo docker compose down`.
 
-## Model AI tambahan (opsional)
+## Mode laptop kentang dan model internet-only
 
-Project memiliki registry model provider-agnostic di `src/crypto_signals/model_registry.py`. Baseline lokal selalu aktif. Endpoint model lokal/kompatibel OpenAI hanya menjadi penasihat riset jika dikonfigurasi melalui environment variable; model tidak boleh melewati Critical Manager dan tidak memiliki akses order.
+Default project memakai profile `lite`, tanpa model lokal besar, tanpa GPU, tanpa PyTorch, dan tanpa dependency ML berat. Profile ini cocok untuk laptop RAM kecil:
+
+```bash
+crypto-signals-scheduler --all-public --profile lite --max-symbols 20 --telegram
+```
+
+Profile `remote` dapat dipakai jika Anda memiliki endpoint LLM hosted yang kompatibel OpenAI:
+
+```bash
+crypto-signals-scheduler --all-public --profile remote --max-symbols 100 --telegram
+```
+
+Konfigurasi optional di `.env`:
+
+```dotenv
+LLM_BASE_URL=https://provider-anda.example/v1
+LLM_MODEL=nama-model
+LLM_API_KEY=token-jika-diperlukan
+```
+
+`remote_adviser.py` hanya mengirim bukti market yang terbatas untuk riset melalui HTTPS. Ia tidak mempunyai tools, wallet, exchange credential, Telegram credential, atau kemampuan eksekusi. Profile remote tidak wajib; profile lite tetap berjalan tanpa LLM.
+
+Project memiliki registry model provider-agnostic di `src/crypto_signals/model_registry.py`. Tidak ada layanan yang dapat menjamin semua model LLM gratis dan tanpa limit; gunakan hanya provider yang memiliki izin dan ketentuan penggunaan yang sesuai. Baseline lokal selalu aktif, sementara model remote hanya penasihat dan tidak boleh melewati Critical Manager.
 
 Tidak ada cara aman atau realistis untuk “mengambil semua LLM di internet”. Model remote dapat berubah, membutuhkan lisensi/credential, memiliki rate limit, atau tidak aman. Karena itu project tetap dapat berjalan tanpa LLM berbayar dan tidak mengunduh atau mengeksekusi model remote secara otomatis.
 

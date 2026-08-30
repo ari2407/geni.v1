@@ -48,6 +48,7 @@ class SignalScheduler:
     summary: DailySummaryAgent | None = None
     state: PersistentState | None = None
     manager: CriticalManager = field(default_factory=CriticalManager)
+    adviser: RemoteAdviser | None = None
     _sent_at: dict[tuple, float] = field(default_factory=dict, init=False)
 
     def stop_event(self) -> threading.Event:
