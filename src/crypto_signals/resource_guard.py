@@ -20,9 +20,10 @@ class ResourceGuard:
         memory = None
         try:
             values = {}
-            for line in open("/proc/meminfo"):
-                key, value = line.split(":", 1)
-                values[key] = int(value.split()[0])
+            with open("/proc/meminfo", encoding="ascii") as handle:
+                for line in handle:
+                    key, value = line.split(":", 1)
+                    values[key] = int(value.split()[0])
             memory = 1 - values["MemAvailable"] / values["MemTotal"]
         except (OSError, KeyError, ValueError):
             pass

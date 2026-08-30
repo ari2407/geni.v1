@@ -5,6 +5,7 @@ They use explicit assumptions and fail closed on invalid input.
 """
 from __future__ import annotations
 from dataclasses import dataclass
+import math
 import random
 
 @dataclass(frozen=True)
@@ -20,7 +21,7 @@ class KellyCriterion:
         self.cap = cap
 
     def calculate(self, win_probability: float, payoff_ratio: float) -> KellyResult:
-        if not 0 <= win_probability <= 1 or payoff_ratio <= 0:
+        if not math.isfinite(win_probability) or not math.isfinite(payoff_ratio) or not 0 <= win_probability <= 1 or payoff_ratio <= 0:
             raise ValueError("invalid Kelly inputs")
         raw = win_probability - (1 - win_probability) / payoff_ratio
         return KellyResult(raw, max(0.0, min(self.cap, raw)), win_probability, payoff_ratio)
@@ -39,7 +40,7 @@ class MonteCarloModel:
         self.trials, self.steps, self.seed = trials, steps, seed
 
     def simulate(self, win_probability: float, payoff_ratio: float, risk_fraction: float) -> MonteCarloResult:
-        if not 0 <= win_probability <= 1 or payoff_ratio <= 0 or not 0 <= risk_fraction <= 1:
+        if not all(math.isfinite(value) for value in (win_probability, payoff_ratio, risk_fraction)) or not 0 <= win_probability <= 1 or payoff_ratio <= 0 or not 0 <= risk_fraction <= 1:
             raise ValueError("invalid Monte Carlo inputs")
         rng = random.Random(self.seed)
         outcomes = []
@@ -82,7 +83,7 @@ class EWMAVolatility:
         self.decay = decay
 
     def estimate(self, returns: list[float]) -> float:
-        if not returns: raise ValueError("returns cannot be empty")
+        if not returns or any(not math.isfinite(value) for value in returns): raise ValueError("returns must be finite and non-empty")
         variance = returns[0] ** 2
         for value in returns[1:]:
             variance = self.decay * variance + (1 - self.decay) * value ** 2

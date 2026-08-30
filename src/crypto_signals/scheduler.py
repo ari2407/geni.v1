@@ -19,6 +19,7 @@ from .telegram import format_signal
 from .summary import DailySummaryAgent
 from .manager import CriticalManager
 from .state import PersistentState
+from .remote_adviser import RemoteAdviser
 
 log = logging.getLogger(__name__)
 
