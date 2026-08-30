@@ -106,14 +106,15 @@ class SignalScheduler:
                 log.exception("symbol cycle failed: %s", symbol)
         return emitted
 
-    def run_forever(self, symbol: str | list[str] = "BTC/USDT", timeframe: str = "H1", stop: threading.Event | None = None) -> None:
+    def run_forever(self, symbol: str | list[str] | Callable[[], list[str]] = "BTC/USDT", timeframe: str = "H1", stop: threading.Event | None = None) -> None:
         """Run until stop is set; Ctrl-C/TERM are handled by the CLI."""
         stop = stop or self.stop_event()
         log.info("scheduler started: %s %s every %ss", symbol, timeframe, self.config.interval_seconds)
         while not stop.is_set():
             started = self.clock()
             try:
-                self.run_symbols(symbol, timeframe) if isinstance(symbol, list) else self.run_cycle(symbol, timeframe)
+                symbols = symbol() if callable(symbol) else symbol
+                self.run_symbols(symbols, timeframe) if isinstance(symbols, list) else self.run_cycle(symbols, timeframe)
             except Exception:
                 log.exception("cycle failed; scheduler remains alive")
             elapsed = max(0.0, self.clock() - started)

@@ -25,14 +25,22 @@ class PublicUniverse:
 
     def discover(self, quote_assets=("USDT", "USD"), max_symbols=1000) -> list[str]:
         symbols: set[str] = set()
+        volume_rank: dict[str, float] = {}
         for provider in self.providers:
             try:
                 payload, _ = self.fetcher(provider.url)
                 symbols.update(self._parse(provider.name, payload, quote_assets))
+                if provider.name == "binance":
+                    # Public 24h ticker gives a changing, volume-ranked universe.
+                    ticker, _ = self.fetcher("https://api.binance.com/api/v3/ticker/24hr")
+                    for item in ticker if isinstance(ticker, list) else []:
+                        raw, quote = item.get("symbol", ""), next((q for q in quote_assets if item.get("symbol", "").endswith(q)), None)
+                        if quote and raw[:-len(quote)] + "/" + quote in symbols:
+                            volume_rank[raw[:-len(quote)] + "/" + quote] = float(item.get("quoteVolume", 0) or 0)
             except Exception:
                 # One registry provider must never block the others.
                 continue
-        return sorted(symbols)[:max_symbols]
+        return sorted(symbols, key=lambda item: volume_rank.get(item, 0), reverse=True)[:max_symbols]
 
     @staticmethod
     def _parse(name, payload, quote_assets):

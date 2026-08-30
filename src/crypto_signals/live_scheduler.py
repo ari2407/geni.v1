@@ -30,19 +30,24 @@ def main() -> None:
     if args.all_public:
         if args.max_symbols < 1 or args.max_symbols > 1000:
             parser.error("--max-symbols must be between 1 and 1000")
-        symbols = PublicUniverse().discover(max_symbols=args.max_symbols)
+        universe = PublicUniverse()
+        symbols = universe.discover(max_symbols=args.max_symbols)
         if not symbols:
             parser.error("no public symbols discovered")
+        # Refresh the top universe at every scheduler cycle so membership can change.
+        symbol_source = lambda: universe.discover(max_symbols=args.max_symbols) or symbols
     elif args.symbols:
         symbols = [item.strip().upper() for item in args.symbols.split(",") if item.strip()]
+        symbol_source = symbols
     else:
         symbols = [args.symbol.upper()]
+        symbol_source = symbols
     if args.once:
         scheduler.run_symbols(symbols, args.timeframe)
         return
     stop = scheduler.stop_event()
     install_shutdown_handlers(stop)
-    scheduler.run_forever(symbols, args.timeframe, stop)
+    scheduler.run_forever(symbol_source, args.timeframe, stop)
 
 
 if __name__ == "__main__":

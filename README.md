@@ -149,7 +149,7 @@ Atau tentukan daftar sendiri:
 crypto-signals-scheduler --symbols BTC/USDT,ETH/USDT,SOL/USDT --timeframe H1 --once
 ```
 
-`--all-public` menggabungkan daftar pair aktif dari registry provider publik dan meneruskannya satu per satu ke filter kandidat. Angka `--max-symbols` adalah pengaman agar rate limit tidak dihabiskan dalam satu cycle. Registry ini extensible; “semua internet” tidak bisa dijamin karena tidak ada API universal dan setiap sumber memiliki lisensi, format, dan rate limit berbeda.
+`--all-public` menggabungkan daftar pair aktif dari registry provider publik, memberi prioritas pada volume 24 jam Binance, dan meneruskannya satu per satu ke filter kandidat. Universe di-refresh pada setiap cycle sehingga perubahan kandidat dapat terdeteksi. Angka `--max-symbols` adalah pengaman agar rate limit tidak dihabiskan dalam satu cycle. Registry ini extensible; “semua internet” tidak bisa dijamin karena tidak ada API universal dan setiap sumber memiliki lisensi, format, dan rate limit berbeda.
 
 Perintah ini hanya mengambil candle publik, membuat signal, lalu mencetak pesan; belum mengirim Telegram dan tidak memiliki fungsi order. Jika jaringan atau semua sumber sedang tidak tersedia, program berhenti dengan aman tanpa membuat signal.
 
